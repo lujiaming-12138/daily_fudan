@@ -5,12 +5,29 @@ from sys import exit as sys_exit
 from sys import argv as sys_argv
 
 from lxml import etree
+import requests
 from requests import session
 import logging
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s')
 
+def notify(_title, _message=None):
+    if not PUSH_KEY:
+        print("未配置PUSH_KEY！")
+        return
 
+    if not _message:
+        _message = _title
+
+    print(_title)
+    print(_message)
+
+    _response = requests.post(f"https://sc.ftqq.com/{PUSH_KEY}.send", {"text": _title, "desp": _message})
+
+    if _response.status_code == 200:
+        print(f"发送通知状态：{_response.content.decode('utf-8')}")
+    else:
+        print(f"发送通知失败：{_response.status_code}")
 class Fudan:
     """
     建立与复旦服务器的会话，执行登录/登出操作
@@ -95,6 +112,7 @@ class Fudan:
             logging.debug("登录成功")
         else:
             logging.debug("登录失败，请检查账号信息")
+            notify("登录失败，请检查账号信息")
             self.close()
 
     def logout(self):
@@ -142,9 +160,11 @@ class Zlapp(Fudan):
 
         if last_info["d"]["info"]["date"] == today:
             logging.info("今日已提交")
+           
             self.close()
         else:
             logging.info("未提交")
+            notify("未提交")
             self.last_info = last_info["d"]["info"]
 
     def checkin(self):
@@ -184,16 +204,18 @@ class Zlapp(Fudan):
 
         save_msg = json_loads(save.text)["m"]
         logging.info(save_msg)
-
+        notify(save_msg)
 def get_account():
     """
     获取账号信息
     """
-    uid, psw = sys_argv[1].strip().split(' ')
-    return uid, psw
+    uid, psw, PUSH_KEY = sys_argv[1].strip().split(' ')
+    return uid, psw, PUSH_KEY
 
+  
+  
 if __name__ == '__main__':
-    uid, psw = get_account()
+    uid, psw, PUSH_KEY  = get_account()
     # logging.debug("ACCOUNT：" + uid + psw)
     zlapp_login = 'https://uis.fudan.edu.cn/authserver/login?' \
                   'service=https://zlapp.fudan.edu.cn/site/ncov/fudanDaily'
